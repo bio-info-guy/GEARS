@@ -471,12 +471,12 @@ class PertData:
                 if p != 'ctrl':
                     cell_graphs[i].extend(self.dataset_processed[p])
             
-            print("Creating dataloaders....")
+            print_sys("Creating dataloaders....")
             # Set up dataloaders
             test_loader = DataLoader(cell_graphs['test'],
                                 batch_size=batch_size, shuffle=False)
 
-            print("Dataloaders created...")
+            print_sys("Dataloaders created...")
             return {'test_loader': test_loader}
         else:
             if self.split =='no_test':
@@ -487,7 +487,7 @@ class PertData:
                 cell_graphs[i] = []
                 for p in self.set2conditions[i]:
                     cell_graphs[i].extend(self.dataset_processed[p])
-            print("Creating dataloaders....")
+            print_sys("Creating dataloaders....")
             if self.low_mem:
                 cell_graphs = self.low_mem_convert(cell_graphs)
             # Set up dataloaders
@@ -506,7 +506,7 @@ class PertData:
             else: 
                 self.dataloader =  {'train_loader': train_loader,
                                     'val_loader': val_loader}
-            print("Done!")
+            print_sys("Done!")
 
     def get_pert_idx(self, pert_category):
         """
