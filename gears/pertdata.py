@@ -130,7 +130,7 @@ class PertData:
         self.pert_names = np.unique(list(gene2go.keys()))
         self.node_map_pert = {x: it for it, x in enumerate(self.pert_names)}
             
-    def load(self, data_name = None, data_path = None, low_mem = False):
+    def load(self, data_name = None, data_path = None, low_mem = None):
         """
         Load existing dataloader
         Use data_name for loading 'norman', 'adamson', 'dixit' datasets
@@ -201,7 +201,7 @@ class PertData:
         if not os.path.exists(pyg_path):
             os.mkdir(pyg_path)
         dataset_fname = os.path.join(pyg_path, 'cell_graphs.pkl')
-        self.low_mem = low_mem
+        self.low_mem = self.low_mem if low_mem is None else low_mem
         if self.low_mem == True:
             self.create_dataset_file(low_mem = True)
         elif os.path.isfile(dataset_fname):
@@ -223,7 +223,7 @@ class PertData:
     def new_data_process(self, dataset_name,
                          adata = None,
                          skip_calc_de = False,
-                         low_mem = False):
+                         low_mem = None):
         """
         Process new dataset
 
@@ -248,7 +248,7 @@ class PertData:
             raise ValueError("Please specify gene name")
         if 'cell_type' not in adata.obs.columns.values:
             raise ValueError("Please specify cell type")
-        self.low_mem = low_mem
+        self.low_mem =  self.low_mem if low_mem is None else low_mem
         dataset_name = dataset_name.lower()
         self.dataset_name = dataset_name
         save_data_folder = os.path.join(self.data_path, dataset_name)
@@ -259,9 +259,21 @@ class PertData:
         self.adata = get_DE_genes(adata, skip_calc_de)
         if not skip_calc_de:
             self.adata = get_dropout_non_zero_genes(self.adata)
+        self.set_pert_genes()
+        print_sys('These perturbations are not in the GO graph and their '
+                  'perturbation can thus not be predicted')
+        not_in_go_pert = np.array(self.adata.obs[
+                                  self.adata.obs.condition.apply(
+                                  lambda x:not filter_pert_in_go(x,
+                                        self.pert_names))].condition.unique())
+        print_sys(not_in_go_pert)
+        
+        filter_go = self.adata.obs[self.adata.obs.condition.apply(
+                              lambda x: filter_pert_in_go(x, self.pert_names))]
+        self.adata = self.adata[filter_go.index.values, :].copy()
         self.adata.write_h5ad(os.path.join(save_data_folder, 'perturb_processed.h5ad'))
         
-        self.set_pert_genes()
+        
         self.ctrl_adata = self.adata[self.adata.obs['condition'] == 'ctrl']
         self.ctrl_adata_index = np.where(self.adata.obs['condition'] == 'ctrl')[0]
         self.gene_names = self.adata.var.gene_name
