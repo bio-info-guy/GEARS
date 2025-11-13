@@ -627,8 +627,6 @@ class PertData:
         else:
             de = False
             num_de_genes = 1
-        Xs = []
-        ys = []
         Xs_inds = []
         ys_inds = []
         # When considering a non-control perturbation
@@ -660,8 +658,8 @@ class PertData:
             pert_idx = None
             de_idx = [-1] * num_de_genes
             for cell_z_inds in adata_index:
-                Xs.append(cell_z_inds)
-                ys.append(cell_z_inds)
+                Xs_inds.append(cell_z_inds)
+                ys_inds.append(cell_z_inds)
 
         # Create cell graphs
         cell_graphs = []
