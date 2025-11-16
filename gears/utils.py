@@ -48,6 +48,10 @@ def np_pearson_cor(x, y):
     return np.maximum(np.minimum(result, 1.0), -1.0)
 
 
+def torch_pearson_cor(x):
+    res = torch.corrcoef(x).detach().cpu().numpy()
+    return res
+
 def dataverse_download(url, save_path):
     """
     Dataverse download helper with progress bar
@@ -237,13 +241,13 @@ def make_GO(data_path, pert_list, data_name, num_workers=25, save=True):
 
 def get_similarity_network(network_type, adata, threshold, k,
                            data_path, data_name, split, seed, train_gene_set_size,
-                           set2conditions, default_pert_graph=True, pert_list=None):
+                           set2conditions, default_pert_graph=True, pert_list=None, device = 'cuda'):
     
     if network_type == 'co-express':
         df_out = get_coexpression_network_from_train(adata, threshold, k,
                                                      data_path, data_name, split,
                                                      seed, train_gene_set_size,
-                                                     set2conditions)
+                                                     set2conditions, device = device)
     elif network_type == 'go':
         if default_pert_graph:
             server_path = 'https://dataverse.harvard.edu/api/access/datafile/6934319'
@@ -263,7 +267,7 @@ def get_similarity_network(network_type, adata, threshold, k,
 
 def get_coexpression_network_from_train(adata, threshold, k, data_path,
                                         data_name, split, seed, train_gene_set_size,
-                                        set2conditions):
+                                        set2conditions, device = 'cuda'):
     """
     Infer co-expression network from training data
 
@@ -295,7 +299,20 @@ def get_coexpression_network_from_train(adata, threshold, k, data_path,
         gene_list = adata.var['gene_name'].values
 
         X_tr = X_tr.toarray()
-        out = np_pearson_cor(X_tr, X_tr)
+        use_cuda_for_co_express = False
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            free_mem, _ = torch.cuda.mem_get_info()
+            if free_mem > 12*X.shape[0]*X.shape[1]:
+                use_cuda_for_co_express = True
+                print('using pytorch to calculate co-expression network')
+        else:
+            print('using CPU to calc co-expression network')
+        if use_cuda_for_co_express:
+            X_torch_tr = torch.tensor(X_tr, dtype=torch.float32).T.to(device)
+            out = torch_pearson_cor(X_torch_tr)
+        else:
+            out = np.corrcoef(X_tr.T, X_tr.T)
         out[np.isnan(out)] = 0
         out = np.abs(out)
 
