@@ -1,12 +1,12 @@
 from copy import deepcopy
-import os
+import os, sys
 import pickle
 import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
-
+from tqdm.auto import tqdm
 from .model import GEARS_Model
 from .inference import evaluate, compute_metrics, deeper_analysis, \
                   non_dropout_analysis
@@ -210,7 +210,7 @@ class GEARS:
                                                data_name=self.dataset_name,
                                                split=self.split, seed=self.seed,
                                                train_gene_set_size=self.train_gene_set_size,
-                                               set2conditions=self.set2conditions)
+                                               set2conditions=self.set2conditions, device = self.device)
 
             sim_network = GeneSimNetwork(edge_list, self.gene_list, node_map = self.node_map)
             self.config['G_coexpress'] = sim_network.edge_index
@@ -510,8 +510,19 @@ class GEARS:
 
         for epoch in range(epochs):
             self.model.train()
-
-            for step, batch in enumerate(train_loader):
+            pbar = tqdm(
+                train_loader, 
+                desc=f"Epoch {epoch+1}/{epochs} [Train]", 
+                position=0,
+                leave=True,
+                ascii=True,
+                unit="batch",
+                disable=False,
+                file = sys.stderr,
+                miniters=int(len(train_loader)/20)
+            )
+            total_loss = 0
+            for step, batch in enumerate(pbar):
                 batch.to(self.device)
                 optimizer.zero_grad()
                 y = batch.y
@@ -528,6 +539,7 @@ class GEARS:
                                   ctrl = self.ctrl_expression, 
                                   dict_filter = self.dict_filter,
                                   direction_lambda = self.config['direction_lambda'])
+                total_loss += loss.item()
                 loss.backward()
                 nn.utils.clip_grad_value_(self.model.parameters(), clip_value=1.0)
                 optimizer.step()
@@ -535,9 +547,9 @@ class GEARS:
                 if self.wandb:
                     self.wandb.log({'training_loss': loss.item()})
 
-                if step % 50 == 0:
+                if step % (len(train_loader)//20) == 0:
                     log = "Epoch {} Step {} Train Loss: {:.4f}" 
-                    print_sys(log.format(epoch + 1, step + 1, loss.item()))
+                    print_sys(log.format(epoch + 1, step + 1, total_loss/(step+1)))
 
             scheduler.step()
             # Evaluate model performance on train and val set

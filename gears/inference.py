@@ -6,7 +6,7 @@ from sklearn.metrics import r2_score
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_squared_error as mse
 from sklearn.metrics import mean_absolute_error as mae
-
+from tqdm import tqdm
 def evaluate(loader, model, uncertainty, device):
     """
     Run model in inference mode using a given data loader
@@ -22,7 +22,7 @@ def evaluate(loader, model, uncertainty, device):
     results = {}
     logvar = []
     
-    for itr, batch in enumerate(loader):
+    for itr, batch in enumerate(tqdm(loader, miniters=int(len(loader)/20))):
 
         batch.to(device)
         pert_cat.extend(batch.pert)
