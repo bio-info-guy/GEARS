@@ -84,13 +84,13 @@ class GEARS:
         self.saved_logvar_sum = {}
         
         self.ctrl_expression = torch.tensor(
-            np.mean(self.adata.X[self.adata.obs.condition == 'ctrl'],
+            np.mean(self.adata.X[(self.adata.obs.condition == 'ctrl').values],
                     axis=0)).reshape(-1, ).to(self.device)
         pert_full_id2pert = dict(self.adata.obs[['condition_name', 'condition']].values)
         self.dict_filter = {pert_full_id2pert[i]: j for i, j in
                             self.adata.uns['non_zeros_gene_idx'].items() if
                             i in pert_full_id2pert}
-        self.ctrl_adata = self.adata[self.adata.obs['condition'] == 'ctrl']
+        self.ctrl_adata = self.adata[(self.adata.obs['condition'] == 'ctrl').values]
         
         gene_dict = {g:i for i,g in enumerate(self.gene_list)}
         self.pert2gene = {p: gene_dict[pert] for p, pert in
@@ -318,7 +318,7 @@ class GEARS:
         ## given a list of single/combo genes, return the transcriptome
         ## if uncertainty mode is on, also return uncertainty score.
         
-        self.ctrl_adata = self.adata[self.adata.obs['condition'] == 'ctrl']
+        self.ctrl_adata = self.adata[(self.adata.obs['condition'] == 'ctrl').values]
         for pert in pert_list:
             for i in pert:
                 if i not in self.pert_list:
@@ -446,7 +446,7 @@ class GEARS:
         
         query_ = [q for q in query.split('+') if q != 'ctrl']
         pred = self.predict([query_])['_'.join(query_)][de_idx]
-        ctrl_means = adata[adata.obs['condition'] == 'ctrl'].to_df().mean()[
+        ctrl_means = adata[(adata.obs['condition'] == 'ctrl').values].to_df().mean()[
             de_idx].values
 
         pred = pred - ctrl_means
@@ -599,6 +599,7 @@ class GEARS:
         test_metrics, test_pert_res = compute_metrics(test_res)    
         log = "Best performing model: Test Top 20 DE MSE: {:.4f}"
         print_sys(log.format(test_metrics['mse_de']))
+        
         
         if self.wandb:
             metrics = ['mse', 'pearson']
